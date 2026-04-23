@@ -501,9 +501,7 @@
     document.title = proposal.title + " - Proposal Manager";
     document.getElementById("detailDate").textContent = formatDate(proposal.updatedAt);
     document.getElementById("detailTitle").textContent = textOrFallback(proposal.title, "Untitled Proposal");
-    document.getElementById("detailDescription").textContent = textOrFallback(proposal.description, "Project description has not been added yet.");
-    document.getElementById("detailTimeline").textContent = getTimelineLabel(proposal);
-    document.getElementById("detailNotes").textContent = textOrFallback(proposal.notes, "No additional notes.");
+    document.getElementById("detailDescription").textContent = textOrFallback(proposal.description, "No extracted text available.");
 
     const detailImageSection = document.getElementById("detailImageSection");
     const detailImage = document.getElementById("detailImage");
@@ -526,10 +524,6 @@
         </tr>
       `).join("");
     }
-
-    const status = document.getElementById("detailStatus");
-    status.textContent = proposal.status;
-    status.classList.add(statusClass(proposal.status));
 
     document.getElementById("editDetailButton").href = "#/edit/" + encodeURIComponent(proposal.id);
     document.getElementById("pdfButton").addEventListener("click", () => window.print());

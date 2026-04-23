@@ -168,33 +168,11 @@
 
     <template id="detailTemplate">
       <article class="proposal-document" id="proposalDocument">
-        <div class="document-topline">
-          <span>Business Proposal</span>
-          <span id="detailDate"></span>
-        </div>
         <header class="document-header">
-          <div>
-            <p class="eyebrow">Business Proposal</p>
-            <h1 id="detailTitle"></h1>
-          </div>
-          <span id="detailStatus" class="status-badge"></span>
+          <h1 id="detailTitle"></h1>
+          <span id="detailDate"></span>
         </header>
-        <section class="document-title" id="detailImageSection" hidden>
-          <p class="eyebrow">Uploaded Image</p>
-          <img id="detailImage" class="document-image" alt="Uploaded proposal reference">
-        </section>
-        <div class="document-grid">
-          <section>
-            <h3>Project Overview</h3>
-            <p id="detailDescription"></p>
-          </section>
-          <aside>
-            <div class="summary-box">
-              <span>Timeline</span>
-              <strong id="detailTimeline"></strong>
-            </div>
-          </aside>
-        </div>
+
         <section id="detailTableSection" hidden>
           <h3>Divisions</h3>
           <div class="division-table-wrap">
@@ -210,14 +188,15 @@
             </table>
           </div>
         </section>
-        <section>
-          <h3>Notes & Next Steps</h3>
-          <p id="detailNotes"></p>
+
+        <section id="detailImageSection" hidden>
+          <img id="detailImage" class="document-image" alt="Uploaded proposal reference">
         </section>
-        <footer class="document-footer">
-          <span>Proposal Manager</span>
-          <span>Generated locally in your browser</span>
-        </footer>
+
+        <section>
+          <h3>OCR Extracted Text</h3>
+          <p id="detailDescription"></p>
+        </section>
       </article>
 
       <nav class="detail-actions">
