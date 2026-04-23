@@ -3,7 +3,6 @@
 
   const STORAGE_KEY = "proposal-manager:proposals:v1";
   const DRAFT_KEY = "proposal-manager:draft:v1";
-  const THEME_KEY = "proposal-manager:theme:v1";
   const STATUSES = ["Pending", "Completed", "For information only"];
   const STATUS_MIGRATION = {
     Draft: "Pending",
@@ -12,9 +11,9 @@
   };
 
   const app = document.getElementById("app");
+  const topbar = document.querySelector(".topbar");
   const backupButton = document.getElementById("backupButton");
   const importInput = document.getElementById("importInput");
-  const themeToggle = document.getElementById("themeToggle");
 
   let proposals = loadProposals();
 
@@ -107,18 +106,6 @@
     return proposals.find((proposal) => proposal.id === id);
   }
 
-  function setTheme(theme) {
-    document.body.classList.toggle("dark", theme === "dark");
-    themeToggle.textContent = theme === "dark" ? "Light" : "Dark";
-    localStorage.setItem(THEME_KEY, theme);
-  }
-
-  function initTheme() {
-    const saved = localStorage.getItem(THEME_KEY);
-    const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
-    setTheme(saved || (prefersDark ? "dark" : "light"));
-  }
-
   function navigate(path) {
     window.location.hash = path;
   }
@@ -136,6 +123,7 @@
   function render() {
     document.title = "Proposal Manager";
     const route = currentRoute();
+    topbar.hidden = route.page !== "dashboard";
     if (route.page === "dashboard") renderDashboard();
     if (route.page === "form") renderForm(route.id);
     if (route.page === "detail") renderDetail(route.id);
@@ -195,11 +183,7 @@
             <span class="status-badge ${statusClass(proposal.status)}">${escapeHtml(proposal.status)}</span>
           </div>
           <div class="proposal-meta">
-            <span>Updated ${formatDate(proposal.updatedAt)}</span>
-            <span>${escapeHtml(getTimelineLabel(proposal))}</span>
-          </div>
-          <div class="card-footer">
-            <strong>View</strong>
+            <span>${formatDate(proposal.updatedAt)}</span>
           </div>
         `;
         proposalList.append(card);
@@ -593,12 +577,8 @@
       importInput.value = "";
     }
   });
-  themeToggle.addEventListener("click", () => {
-    setTheme(document.body.classList.contains("dark") ? "light" : "dark");
-  });
   window.addEventListener("hashchange", render);
 
-  initTheme();
   render();
 
   if ("serviceWorker" in navigator && location.protocol !== "file:") {

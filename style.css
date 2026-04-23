@@ -64,8 +64,8 @@ label {
   position: relative;
   z-index: 10;
   display: flex;
-  align-items: start;
-  flex-direction: column;
+  align-items: center;
+  flex-direction: row;
   justify-content: space-between;
   gap: 12px;
   padding: 12px 0;
@@ -77,6 +77,7 @@ label {
   align-items: center;
   gap: 9px;
   min-width: 0;
+  flex: 1 1 auto;
 }
 
 .brand-mark {
@@ -113,11 +114,13 @@ label {
 }
 
 .topbar-actions {
-  width: 100%;
+  width: auto;
+  flex: 0 0 auto;
+  justify-content: flex-end;
 }
 
 .topbar-actions > * {
-  flex: 1;
+  flex: 0 0 auto;
 }
 
 .page {
@@ -303,9 +306,9 @@ textarea {
 
 .proposal-card {
   display: grid;
-  gap: 6px;
-  min-height: 104px;
-  padding: 12px 14px;
+  gap: 5px;
+  min-height: 70px;
+  padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--card);
@@ -336,20 +339,10 @@ textarea {
 }
 
 .proposal-meta {
-  display: grid;
-  gap: 2px;
+  display: block;
   color: var(--muted);
   font-size: 12px;
   line-height: 1.25;
-}
-
-.card-footer {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  margin-top: 2px;
-  color: var(--ink);
-  font-size: 13px;
 }
 
 .status-badge {
@@ -613,19 +606,6 @@ textarea {
 }
 
 @media (min-width: 761px) {
-  .topbar {
-    align-items: center;
-    flex-direction: row;
-  }
-
-  .topbar-actions {
-    width: auto;
-  }
-
-  .topbar-actions > * {
-    flex: 0 0 auto;
-  }
-
   .controls-panel {
     grid-template-columns: 1fr 190px 190px;
   }
