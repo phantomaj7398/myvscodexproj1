@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#17324d">
+    <meta name="theme-color" content="#5f9a8b">
     <meta name="description" content="Create, manage, and export client-ready business proposals.">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -39,24 +39,6 @@
     </div>
 
     <template id="dashboardTemplate">
-      <section class="hero-card">
-        <div>
-          <p class="eyebrow">Dashboard</p>
-          <h1>Manage proposals without the admin drag.</h1>
-          <p class="hero-copy">Create polished business proposals, keep drafts organized, and export client-ready PDFs from your browser.</p>
-        </div>
-        <div class="hero-stats">
-          <div>
-            <strong id="totalCount">0</strong>
-            <span>Total</span>
-          </div>
-          <div>
-            <strong id="finalCount">0</strong>
-            <span>Final</span>
-          </div>
-        </div>
-      </section>
-
       <section class="panel controls-panel">
         <div class="field search-field">
           <label for="searchInput">Search</label>
@@ -66,9 +48,9 @@
           <label for="statusFilter">Status</label>
           <select id="statusFilter">
             <option value="All">All statuses</option>
-            <option value="Draft">Draft</option>
-            <option value="Final">Final</option>
-            <option value="Sent">Sent</option>
+            <option value="Pending">Pending</option>
+            <option value="Completed">Completed</option>
+            <option value="For information only">For information only</option>
           </select>
         </div>
         <div class="field">
@@ -117,9 +99,9 @@
             <div class="field">
               <label for="status">Status</label>
               <select id="status" name="status">
-                <option>Draft</option>
-                <option>Final</option>
-                <option>Sent</option>
+                <option>Pending</option>
+                <option>Completed</option>
+                <option>For information only</option>
               </select>
             </div>
             <div class="field full">

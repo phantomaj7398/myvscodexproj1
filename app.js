@@ -4,7 +4,12 @@
   const STORAGE_KEY = "proposal-manager:proposals:v1";
   const DRAFT_KEY = "proposal-manager:draft:v1";
   const THEME_KEY = "proposal-manager:theme:v1";
-  const STATUSES = ["Draft", "Final", "Sent"];
+  const STATUSES = ["Pending", "Completed", "For information only"];
+  const STATUS_MIGRATION = {
+    Draft: "Pending",
+    Final: "Completed",
+    Sent: "For information only"
+  };
 
   const app = document.getElementById("app");
   const backupButton = document.getElementById("backupButton");
@@ -41,6 +46,15 @@
       .replaceAll("'", "&#039;");
   }
 
+  function normalizeStatus(status) {
+    const migrated = STATUS_MIGRATION[status] || status;
+    return STATUSES.includes(migrated) ? migrated : "Pending";
+  }
+
+  function statusClass(status) {
+    return normalizeStatus(status).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  }
+
   function normalizeProposal(proposal) {
     const now = todayISO();
     const divisions = Array.isArray(proposal.divisions) ? proposal.divisions : [];
@@ -68,7 +82,7 @@
         additionalComments: String(row.additionalComments || "").trim()
       })),
       image,
-      status: STATUSES.includes(proposal.status) ? proposal.status : "Draft",
+      status: normalizeStatus(proposal.status),
       createdAt: proposal.createdAt || now,
       updatedAt: proposal.updatedAt || now
     };
@@ -140,9 +154,6 @@
     const emptyState = document.getElementById("emptyState");
     const resultCount = document.getElementById("resultCount");
 
-    document.getElementById("totalCount").textContent = proposals.length;
-    document.getElementById("finalCount").textContent = proposals.filter((item) => item.status === "Final").length;
-
     function drawList() {
       const query = searchInput.value.trim().toLowerCase();
       const status = statusFilter.value;
@@ -180,7 +191,7 @@
         card.href = "#/proposal/" + encodeURIComponent(proposal.id);
         card.innerHTML = `
           <div>
-            <span class="status-badge ${proposal.status.toLowerCase()}">${escapeHtml(proposal.status)}</span>
+            <span class="status-badge ${statusClass(proposal.status)}">${escapeHtml(proposal.status)}</span>
           </div>
           <div>
             <h3>${escapeHtml(proposal.title || "Untitled Proposal")}</h3>
@@ -235,7 +246,7 @@
     form.elements.timelineType.value = data.timelineType || "none";
     form.elements.timelineDate.value = data.timelineDate || "";
     form.elements.notes.value = data.notes || "";
-    form.elements.status.value = data.status || "Draft";
+    form.elements.status.value = data.status || "Pending";
     syncTimelineDateVisibility(form, timelineDateField);
     renderDivisionRows(divisionRows, data.divisions && data.divisions.length ? data.divisions : [emptyDivisionRow()]);
     updateImagePreview(currentImage);
@@ -521,7 +532,7 @@
 
     const status = document.getElementById("detailStatus");
     status.textContent = proposal.status;
-    status.classList.add(proposal.status.toLowerCase());
+    status.classList.add(statusClass(proposal.status));
 
     document.getElementById("editDetailButton").href = "#/edit/" + encodeURIComponent(proposal.id);
     document.getElementById("pdfButton").addEventListener("click", () => window.print());
