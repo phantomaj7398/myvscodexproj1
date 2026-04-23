@@ -3,7 +3,14 @@
 
   const STORAGE_KEY = "proposal-manager:proposals:v1";
   const DRAFT_KEY = "proposal-manager:draft:v1";
+  const DIVISION_OPTIONS_KEY = "proposal-manager:division-options:v1";
   const STATUSES = ["Pending", "Completed", "For information only"];
+  const SORT_OPTIONS = [
+    { value: "date-desc", label: "Newest first" },
+    { value: "date-asc", label: "Oldest first" },
+    { value: "title-asc", label: "Title A-Z" },
+    { value: "title-desc", label: "Title Z-A" }
+  ];
   const STATUS_MIGRATION = {
     Draft: "Pending",
     Final: "Completed",
@@ -16,6 +23,7 @@
   const importInput = document.getElementById("importInput");
 
   let proposals = loadProposals();
+  let divisionOptions = loadDivisionOptions();
 
   function uid() {
     if (window.crypto && crypto.randomUUID) {
@@ -52,6 +60,10 @@
 
   function statusClass(status) {
     return normalizeStatus(status).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  }
+
+  function shortStatusLabel(status) {
+    return status === "For information only" ? "For info..." : status;
   }
 
   function normalizeProposal(proposal) {
@@ -102,6 +114,52 @@
     localStorage.setItem(STORAGE_KEY, JSON.stringify(proposals));
   }
 
+  function collectDivisionOptions(source) {
+    const seen = new Set();
+    return (source || [])
+      .flatMap((proposal) => Array.isArray(proposal.divisions) ? proposal.divisions : [])
+      .map((row) => String(row.division || "").trim())
+      .filter((name) => {
+        if (!name || seen.has(name)) return false;
+        seen.add(name);
+        return true;
+      });
+  }
+
+  function normalizeDivisionOptions(options) {
+    const seen = new Set();
+    const incoming = Array.isArray(options) ? options : [];
+    return incoming
+      .map((option) => String(option || "").trim())
+      .filter((option) => {
+        if (!option || seen.has(option)) return false;
+        seen.add(option);
+        return true;
+      });
+  }
+
+  function loadDivisionOptions() {
+    try {
+      const raw = localStorage.getItem(DIVISION_OPTIONS_KEY);
+      if (raw === null) {
+        return collectDivisionOptions(proposals);
+      }
+      const stored = JSON.parse(raw);
+      return normalizeDivisionOptions(stored);
+    } catch (error) {
+      return collectDivisionOptions(proposals);
+    }
+  }
+
+  function saveDivisionOptions() {
+    localStorage.setItem(DIVISION_OPTIONS_KEY, JSON.stringify(divisionOptions));
+  }
+
+  function syncStoredDivisionOptions() {
+    divisionOptions = normalizeDivisionOptions(divisionOptions);
+    saveDivisionOptions();
+  }
+
   function getProposal(id) {
     return proposals.find((proposal) => proposal.id === id);
   }
@@ -136,16 +194,54 @@
     app.append(document.getElementById("dashboardTemplate").content.cloneNode(true));
 
     const searchInput = document.getElementById("searchInput");
-    const statusFilter = document.getElementById("statusFilter");
-    const sortSelect = document.getElementById("sortSelect");
+    const statusFilterPanel = document.getElementById("statusFilterPanel");
+    const sortPanel = document.getElementById("sortPanel");
     const proposalList = document.getElementById("proposalList");
     const emptyState = document.getElementById("emptyState");
     const resultCount = document.getElementById("resultCount");
+    const selectedStatuses = new Set(["All"]);
+    let selectedSort = "date-desc";
+
+    function renderDashboardPanels() {
+      renderChoicePanel(statusFilterPanel, ["All"].concat(STATUSES), {
+        selectedValues: selectedStatuses,
+        labelFor: (value) => shortStatusLabel(value),
+        titleFor: (value) => value,
+        onChange(nextValue) {
+          if (nextValue === "All") {
+            selectedStatuses.clear();
+            selectedStatuses.add("All");
+          } else {
+            selectedStatuses.delete("All");
+            if (selectedStatuses.has(nextValue)) {
+              selectedStatuses.delete(nextValue);
+            } else {
+              selectedStatuses.add(nextValue);
+            }
+            if (!selectedStatuses.size) {
+              selectedStatuses.add("All");
+            }
+          }
+          drawList();
+          renderDashboardPanels();
+        }
+      });
+
+      renderChoicePanel(sortPanel, SORT_OPTIONS.map((option) => option.value), {
+        selectedValues: new Set([selectedSort]),
+        labelFor: (value) => (SORT_OPTIONS.find((option) => option.value === value) || {}).label || value,
+        onChange(nextValue) {
+          selectedSort = nextValue;
+          drawList();
+          renderDashboardPanels();
+        }
+      });
+    }
 
     function drawList() {
       const query = searchInput.value.trim().toLowerCase();
-      const status = statusFilter.value;
-      const sort = sortSelect.value;
+      const sort = selectedSort;
+      const activeStatuses = selectedStatuses.has("All") ? STATUSES : Array.from(selectedStatuses);
 
       let visible = proposals.filter((proposal) => {
         const searchable = [
@@ -159,7 +255,7 @@
             row.additionalComments
           ])
         ].join(" ").toLowerCase();
-        return (!query || searchable.includes(query)) && (status === "All" || proposal.status === status);
+        return (!query || searchable.includes(query)) && activeStatuses.includes(proposal.status);
       });
 
       visible = visible.sort((a, b) => {
@@ -191,8 +287,7 @@
     }
 
     searchInput.addEventListener("input", drawList);
-    statusFilter.addEventListener("change", drawList);
-    sortSelect.addEventListener("change", drawList);
+    renderDashboardPanels();
     drawList();
   }
 
@@ -483,7 +578,8 @@
     app.append(document.getElementById("detailTemplate").content.cloneNode(true));
 
     document.title = proposal.title + " - Proposal Manager";
-    document.getElementById("detailDate").textContent = formatDate(proposal.updatedAt);
+    const detailDate = document.getElementById("detailDate");
+    detailDate.textContent = formatDate(proposal.updatedAt);
     document.getElementById("detailTitle").textContent = textOrFallback(proposal.title, "Untitled Proposal");
     document.getElementById("detailDescription").textContent = textOrFallback(proposal.description, "No extracted text available.");
 
@@ -495,19 +591,151 @@
       detailImage.alt = proposal.image.name || "Uploaded proposal reference";
     }
 
-    const tableRows = proposal.divisions || [];
     const detailTableSection = document.getElementById("detailTableSection");
+    const detailDivisionPanel = document.getElementById("detailDivisionPanel");
     const detailDivisionRows = document.getElementById("detailDivisionRows");
-    if (tableRows.length) {
-      detailTableSection.hidden = false;
-      detailDivisionRows.innerHTML = tableRows.map((row) => `
+    const detailDivisionEmpty = document.getElementById("detailDivisionEmpty");
+    const editDivisionsButton = document.getElementById("editDivisionsButton");
+    const divisionModal = document.getElementById("divisionModal");
+    const divisionOptionList = document.getElementById("divisionOptionList");
+    const newDivisionInput = document.getElementById("newDivisionInput");
+    const addDivisionOption = document.getElementById("addDivisionOption");
+    const saveDivisionOptionsButton = document.getElementById("saveDivisionOptions");
+    const cancelDivisionModal = document.getElementById("cancelDivisionModal");
+    const closeDivisionModal = document.getElementById("closeDivisionModal");
+
+    detailTableSection.hidden = false;
+
+    function renderDivisionTable() {
+      const selectedRows = (proposal.divisions || []).filter((row) => row.division);
+      detailDate.textContent = formatDate(proposal.updatedAt);
+      detailDivisionRows.innerHTML = selectedRows.map((row) => `
         <tr>
           <td>${escapeHtml(row.division)}</td>
           <td>${escapeHtml(row.comments)}</td>
           <td>${escapeHtml(row.additionalComments)}</td>
         </tr>
       `).join("");
+      detailDivisionEmpty.hidden = selectedRows.length > 0;
     }
+
+    function renderDivisionSelector() {
+      const selectedValues = new Set((proposal.divisions || []).map((row) => row.division).filter(Boolean));
+      renderChoicePanel(detailDivisionPanel, divisionOptions, {
+        selectedValues,
+        multiple: true,
+        emptyMessage: "Add division options to start selecting them.",
+        onChange(nextValue) {
+          const nextSelected = new Set(selectedValues);
+          if (nextSelected.has(nextValue)) {
+            nextSelected.delete(nextValue);
+          } else {
+            nextSelected.add(nextValue);
+          }
+          proposal.divisions = syncProposalDivisions(proposal.divisions || [], nextSelected);
+          proposal.updatedAt = todayISO();
+          saveProposals();
+          renderDivisionSelector();
+          renderDivisionTable();
+        }
+      });
+    }
+
+    function renderDivisionOptionEditor(options) {
+      divisionOptionList.innerHTML = "";
+      options.forEach((option) => {
+        const row = document.createElement("div");
+        row.className = "division-option-row";
+        row.dataset.originalOption = option;
+        row.innerHTML = `
+          <input type="text" value="${escapeHtml(option)}" data-division-option-input>
+          <button class="danger-button compact-button" type="button" data-division-option-remove>Delete</button>
+        `;
+        divisionOptionList.append(row);
+      });
+    }
+
+    function openDivisionModal() {
+      renderDivisionOptionEditor(divisionOptions);
+      newDivisionInput.value = "";
+      divisionModal.hidden = false;
+    }
+
+    function closeDivisionEditor() {
+      divisionModal.hidden = true;
+    }
+
+    function appendDivisionOptionEditorRow(value) {
+      const row = document.createElement("div");
+      row.className = "division-option-row";
+      row.innerHTML = `
+        <input type="text" value="${escapeHtml(value)}" data-division-option-input>
+        <button class="danger-button compact-button" type="button" data-division-option-remove>Delete</button>
+      `;
+      divisionOptionList.append(row);
+    }
+
+    function saveDivisionOptionChanges() {
+      const editedRows = Array.from(divisionOptionList.querySelectorAll(".division-option-row")).map((row) => ({
+        original: row.dataset.originalOption || "",
+        current: row.querySelector("[data-division-option-input]").value.trim()
+      }));
+      divisionOptions = normalizeDivisionOptions(editedRows.map((row) => row.current));
+      const renameMap = new Map();
+      editedRows.forEach((row) => {
+        if (row.original && row.current && row.original !== row.current && divisionOptions.includes(row.current)) {
+          renameMap.set(row.original, row.current);
+        }
+      });
+      proposals = proposals.map((item) => ({
+        ...item,
+        divisions: syncProposalDivisions(
+          (item.divisions || []).map((row) => ({
+            ...row,
+            division: renameMap.get(row.division) || row.division
+          })).filter((row) => divisionOptions.includes(row.division)),
+          new Set((item.divisions || [])
+            .map((row) => renameMap.get(row.division) || row.division)
+            .filter((division) => divisionOptions.includes(division)))
+        )
+      }));
+      const refreshedProposal = getProposal(proposal.id);
+      if (refreshedProposal) {
+        proposal.divisions = refreshedProposal.divisions;
+        proposal.updatedAt = todayISO();
+        refreshedProposal.updatedAt = proposal.updatedAt;
+      }
+      syncStoredDivisionOptions();
+      saveProposals();
+      renderDivisionSelector();
+      renderDivisionTable();
+      closeDivisionEditor();
+    }
+
+    renderDivisionSelector();
+    renderDivisionTable();
+
+    editDivisionsButton.addEventListener("click", openDivisionModal);
+    addDivisionOption.addEventListener("click", () => {
+      const value = newDivisionInput.value.trim();
+      if (!value) return;
+      appendDivisionOptionEditorRow(value);
+      newDivisionInput.value = "";
+      newDivisionInput.focus();
+    });
+    divisionOptionList.addEventListener("click", (event) => {
+      const removeButton = event.target.closest("[data-division-option-remove]");
+      if (!removeButton) return;
+      removeButton.closest(".division-option-row").remove();
+    });
+    saveDivisionOptionsButton.addEventListener("click", saveDivisionOptionChanges);
+    cancelDivisionModal.addEventListener("click", closeDivisionEditor);
+    closeDivisionModal.addEventListener("click", closeDivisionEditor);
+    divisionModal.addEventListener("click", (event) => {
+      if (event.target === divisionModal) {
+        closeDivisionEditor();
+      }
+    });
 
     document.getElementById("editDetailButton").href = "#/edit/" + encodeURIComponent(proposal.id);
     document.getElementById("pdfButton").addEventListener("click", () => window.print());
@@ -536,7 +764,8 @@
       exportedAt: todayISO(),
       app: "Proposal Manager",
       version: 1,
-      proposals
+      proposals,
+      divisionOptions
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const link = document.createElement("a");
@@ -556,6 +785,10 @@
         const imported = Array.isArray(data) ? data : data.proposals;
         if (!Array.isArray(imported)) throw new Error("Invalid backup format");
         proposals = imported.map(normalizeProposal);
+        divisionOptions = data && "divisionOptions" in data
+          ? normalizeDivisionOptions(data.divisionOptions)
+          : collectDivisionOptions(proposals);
+        saveDivisionOptions();
         saveProposals();
         render();
         alert("Backup imported successfully.");
@@ -587,5 +820,51 @@
         console.warn("Service worker registration failed", error);
       });
     });
+  }
+
+  function renderChoicePanel(container, values, config) {
+    container.innerHTML = "";
+    if (!values.length && config.emptyMessage) {
+      const empty = document.createElement("span");
+      empty.className = "choice-panel-empty";
+      empty.textContent = config.emptyMessage;
+      container.append(empty);
+      return;
+    }
+
+    values.forEach((value) => {
+      const button = document.createElement("button");
+      const label = config.labelFor ? config.labelFor(value) : value;
+      const selected = config.selectedValues.has(value);
+      button.type = "button";
+      button.className = "choice-chip" + (selected ? " selected" : "");
+      button.textContent = label;
+      button.title = config.titleFor ? config.titleFor(value) : label;
+      button.setAttribute("aria-pressed", selected ? "true" : "false");
+      button.addEventListener("click", () => config.onChange(value));
+      container.append(button);
+    });
+  }
+
+  function syncProposalDivisions(rows, selectedValues) {
+    const rowMap = new Map();
+    (rows || []).forEach((row) => {
+      const division = String(row.division || "").trim();
+      if (!division || rowMap.has(division)) return;
+      rowMap.set(division, {
+        division,
+        comments: String(row.comments || "").trim(),
+        additionalComments: String(row.additionalComments || "").trim()
+      });
+    });
+
+    const selected = Array.from(selectedValues);
+    return divisionOptions
+      .filter((division) => selected.includes(division))
+      .map((division) => rowMap.get(division) || {
+        division,
+        comments: "",
+        additionalComments: ""
+      });
   }
 })();
