@@ -1,4 +1,4 @@
-const CACHE_NAME = "proposal-manager-v2";
+const CACHE_NAME = "proposal-manager-v3";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -31,11 +31,32 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
 
-  event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached;
+  const url = new URL(event.request.url);
+  const isSameOrigin = url.origin === self.location.origin;
+  const isAppShellRequest = isSameOrigin && (
+    event.request.mode === "navigate" ||
+    APP_SHELL.some((asset) => url.pathname.endsWith(asset.replace(/^\.\//, "/")))
+  );
 
-      return fetch(event.request)
+  event.respondWith(
+    (isAppShellRequest ? fetch(event.request)
+      .then((response) => {
+        const copy = response.clone();
+        caches.open(CACHE_NAME).then((cache) => {
+          cache.put(event.request, copy);
+        });
+        return response;
+      })
+      .catch(() => caches.match(event.request).then((cached) => {
+        if (cached) return cached;
+        if (event.request.mode === "navigate") {
+          return caches.match("./index.html");
+        }
+        return new Response("", { status: 504, statusText: "Offline" });
+      })) : caches.match(event.request).then((cached) => {
+        if (cached) return cached;
+
+        return fetch(event.request)
         .then((response) => {
           const copy = response.clone();
           caches.open(CACHE_NAME).then((cache) => {
@@ -49,6 +70,6 @@ self.addEventListener("fetch", (event) => {
           }
           return new Response("", { status: 504, statusText: "Offline" });
         });
-    })
+      }))
   );
 });
