@@ -190,18 +190,15 @@
         card.className = "proposal-card";
         card.href = "#/proposal/" + encodeURIComponent(proposal.id);
         card.innerHTML = `
-          <div>
+          <div class="card-title-row">
+            <h3>${escapeHtml(proposal.title || "Untitled Proposal")}</h3>
             <span class="status-badge ${statusClass(proposal.status)}">${escapeHtml(proposal.status)}</span>
           </div>
-          <div>
-            <h3>${escapeHtml(proposal.title || "Untitled Proposal")}</h3>
-            <div class="proposal-meta">
-              <span>Updated ${formatDate(proposal.updatedAt)}</span>
-              <span>${escapeHtml(getTimelineLabel(proposal))}</span>
-            </div>
+          <div class="proposal-meta">
+            <span>Updated ${formatDate(proposal.updatedAt)}</span>
+            <span>${escapeHtml(getTimelineLabel(proposal))}</span>
           </div>
           <div class="card-footer">
-            <span>Open proposal</span>
             <strong>View</strong>
           </div>
         `;
