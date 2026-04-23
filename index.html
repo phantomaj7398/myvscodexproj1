@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#17324d">
+    <meta name="description" content="Create, manage, and export client-ready business proposals.">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Proposal Manager">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Proposal Manager</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="icon.svg">
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <a class="brand" href="#/">
+          <span class="brand-mark">PM</span>
+          <span>
+            <strong>Proposal Manager</strong>
+            <small>Client-ready proposals, faster</small>
+          </span>
+        </a>
+        <div class="topbar-actions">
+          <button class="icon-button" id="backupButton" type="button" title="Download JSON backup">Backup</button>
+          <label class="icon-button import-button" title="Import JSON backup">
+            Import
+            <input id="importInput" type="file" accept="application/json,.json">
+          </label>
+          <button class="icon-button" id="themeToggle" type="button" aria-label="Toggle dark mode">Dark</button>
+        </div>
+      </header>
+
+      <main id="app" class="page" aria-live="polite"></main>
+    </div>
+
+    <template id="dashboardTemplate">
+      <section class="hero-card">
+        <div>
+          <p class="eyebrow">Dashboard</p>
+          <h1>Manage proposals without the admin drag.</h1>
+          <p class="hero-copy">Create polished business proposals, keep drafts organized, and export client-ready PDFs from your browser.</p>
+        </div>
+        <div class="hero-stats">
+          <div>
+            <strong id="totalCount">0</strong>
+            <span>Total</span>
+          </div>
+          <div>
+            <strong id="finalCount">0</strong>
+            <span>Final</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel controls-panel">
+        <div class="field search-field">
+          <label for="searchInput">Search</label>
+          <input id="searchInput" type="search" placeholder="Search title, description, notes, or divisions">
+        </div>
+        <div class="field">
+          <label for="statusFilter">Status</label>
+          <select id="statusFilter">
+            <option value="All">All statuses</option>
+            <option value="Draft">Draft</option>
+            <option value="Final">Final</option>
+            <option value="Sent">Sent</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="sortSelect">Sort</label>
+          <select id="sortSelect">
+            <option value="date-desc">Newest first</option>
+            <option value="date-asc">Oldest first</option>
+            <option value="title-asc">Title A-Z</option>
+            <option value="title-desc">Title Z-A</option>
+          </select>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-heading">
+          <h2>Proposals</h2>
+          <span id="resultCount">0 shown</span>
+        </div>
+        <div id="proposalList" class="proposal-grid"></div>
+        <div id="emptyState" class="empty-state" hidden>
+          <h3>No proposals yet</h3>
+          <p>Create your first proposal and it will appear here automatically.</p>
+          <a class="primary-button" href="#/new">Create Proposal</a>
+        </div>
+      </section>
+
+      <a class="fab" href="#/new" aria-label="Add Proposal">+</a>
+    </template>
+
+    <template id="formTemplate">
+      <section class="panel form-panel">
+        <div class="form-header">
+          <div>
+            <p class="eyebrow" id="formMode">New proposal</p>
+            <h1 id="formTitle">Create Proposal</h1>
+          </div>
+          <span id="autosaveState" class="autosave-pill">Autosave ready</span>
+        </div>
+
+        <form id="proposalForm">
+          <div class="form-grid">
+            <div class="field full">
+              <label for="title">Proposal Title</label>
+              <input id="title" name="title" type="text" placeholder="Website redesign proposal" required>
+            </div>
+            <div class="field">
+              <label for="status">Status</label>
+              <select id="status" name="status">
+                <option>Draft</option>
+                <option>Final</option>
+                <option>Sent</option>
+              </select>
+            </div>
+            <div class="field full">
+              <label for="description">Project Description</label>
+              <textarea id="description" name="description" rows="6" placeholder="Describe the problem, proposed solution, scope, and outcomes."></textarea>
+            </div>
+            <div class="field">
+              <label for="timelineType">Timeline</label>
+              <select id="timelineType" name="timelineType">
+                <option value="none">No fixed date</option>
+                <option value="date">Choose a date</option>
+              </select>
+            </div>
+            <div class="field" id="timelineDateField" hidden>
+              <label for="timelineDate">Timeline Date</label>
+              <input id="timelineDate" name="timelineDate" type="date">
+            </div>
+            <div class="field full">
+              <label for="notes">Notes</label>
+              <textarea id="notes" name="notes" rows="4" placeholder="Internal notes, assumptions, next steps, or reminders."></textarea>
+            </div>
+            <div class="field full">
+              <label>Divisions Table</label>
+              <div class="table-editor">
+                <div class="division-table-wrap">
+                  <table class="division-table" aria-label="Proposal divisions">
+                    <thead>
+                      <tr>
+                        <th>Divisions</th>
+                        <th>Comments</th>
+                        <th>Additional Comments</th>
+                        <th class="action-column">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody id="divisionRows"></tbody>
+                  </table>
+                </div>
+                <button class="secondary-button" id="addDivisionRow" type="button">Add Row</button>
+              </div>
+            </div>
+            <div class="field full">
+              <label for="ocrUpload">OCR Upload (optional)</label>
+              <input id="ocrUpload" type="file" accept="image/*">
+              <small class="hint">Uses Tesseract.js in your browser to extract English text from images. No backend is required.</small>
+            </div>
+            <div class="field full">
+              <label>Saved Image</label>
+              <figure class="image-preview" id="imagePreview" hidden>
+                <img id="proposalImagePreview" alt="Uploaded proposal reference">
+                <figcaption id="proposalImageName"></figcaption>
+              </figure>
+              <button class="danger-button" id="removeImageButton" type="button" hidden>Remove Image</button>
+            </div>
+          </div>
+
+          <div class="button-row">
+            <button class="primary-button" type="submit">Save Proposal</button>
+            <a class="secondary-button" href="#/">Cancel</a>
+            <button class="danger-button" id="deleteFromForm" type="button" hidden>Delete</button>
+          </div>
+        </form>
+      </section>
+    </template>
+
+    <template id="detailTemplate">
+      <article class="proposal-document" id="proposalDocument">
+        <div class="document-topline">
+          <span>Business Proposal</span>
+          <span id="detailDate"></span>
+        </div>
+        <header class="document-header">
+          <div>
+            <p class="eyebrow">Business Proposal</p>
+            <h1 id="detailTitle"></h1>
+          </div>
+          <span id="detailStatus" class="status-badge"></span>
+        </header>
+        <section class="document-title" id="detailImageSection" hidden>
+          <p class="eyebrow">Uploaded Image</p>
+          <img id="detailImage" class="document-image" alt="Uploaded proposal reference">
+        </section>
+        <div class="document-grid">
+          <section>
+            <h3>Project Overview</h3>
+            <p id="detailDescription"></p>
+          </section>
+          <aside>
+            <div class="summary-box">
+              <span>Timeline</span>
+              <strong id="detailTimeline"></strong>
+            </div>
+          </aside>
+        </div>
+        <section id="detailTableSection" hidden>
+          <h3>Divisions</h3>
+          <div class="division-table-wrap">
+            <table class="division-table document-table">
+              <thead>
+                <tr>
+                  <th>Divisions</th>
+                  <th>Comments</th>
+                  <th>Additional Comments</th>
+                </tr>
+              </thead>
+              <tbody id="detailDivisionRows"></tbody>
+            </table>
+          </div>
+        </section>
+        <section>
+          <h3>Notes & Next Steps</h3>
+          <p id="detailNotes"></p>
+        </section>
+        <footer class="document-footer">
+          <span>Proposal Manager</span>
+          <span>Generated locally in your browser</span>
+        </footer>
+      </article>
+
+      <nav class="detail-actions">
+        <a class="secondary-button" href="#/">Back</a>
+        <a class="primary-button" id="editDetailButton" href="#">Edit</a>
+        <button class="secondary-button" id="pdfButton" type="button">Export as PDF</button>
+        <button class="danger-button" id="deleteDetailButton" type="button">Delete</button>
+      </nav>
+    </template>
+
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
